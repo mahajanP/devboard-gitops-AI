@@ -18,10 +18,10 @@ import httpx
 
 log = logging.getLogger("ai-service.model")
 
-# Shared Ollama service (see gitops/ollama/). Cross-namespace FQDN so any
-# stack's ai-service can reach the one shared model server.
+# Default: Docker Compose service name. In Kubernetes, override via env var
+# with the cluster FQDN (e.g. http://ollama.ollama.svc.cluster.local:11434/v1).
 MODEL_API_BASE = os.environ.get(
-    "MODEL_API_BASE", "http://ollama.ollama.svc.cluster.local:11434/v1"
+    "MODEL_API_BASE", "http://ollama:11434/v1"
 ).rstrip("/")
 MODEL_NAME = os.environ.get("MODEL_NAME", "llama3.2:1b")
 
