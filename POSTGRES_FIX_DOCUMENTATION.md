@@ -139,6 +139,44 @@ kubectl apply -f k8s/postgres-statefulset.yml -n devboard
 
 ---
 
-Document Version: 1.0  
+## Additional Fix - October 9, 2026
+
+**Issue:** ArgoCD sync failed with: `StatefulSet.apps "postgres-statefulset" is invalid: spec: Forbidden: updates to statefulset spec for fields other than...`
+
+**Root Cause:** The `volumeClaimTemplates` metadata in the manifest contained an invalid `namespace: devboard` field, which Kubernetes forbids because it's immutable after creation.
+
+**Fix Applied:**
+- Removed `namespace: devboard` from `volumeClaimTemplates.metadata`
+- Kept `namespace: devboard` in the StatefulSet's `spec.metadata` (correct location)
+- Deleted old StatefulSet with `--cascade=orphan` to preserve PVC data
+- Reapplied corrected manifest from git
+- Git commit: `8258f0b`
+
+**Result (Verified October 9, 2026, 5:15 AM UTC):**
+- ✅ ArgoCD sync: **Synced**
+- ✅ Pod: **postgres-statefulset-0 running 1/1**
+- ✅ PVC: **Bound to postgres-pv-gp2**
+- ✅ No more immutable spec errors
+- ✅ Backend API operational: `http://172.25.232.68:31385/api/projects`
+- ✅ Database queries working
+
+See [gitops/TROUBLESHOOTING.md](gitops/TROUBLESHOOTING.md) for complete details.
+
+---
+
+## System Status Summary (October 9, 2026)
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| PostgreSQL Pod | ✅ Running 1/1 | postgres-statefulset-0 |
+| PostgreSQL Data | ✅ Bound | data-postgres-statefulset-0 → postgres-pv-gp2 |
+| ArgoCD Sync | ✅ Synced | All manifests in sync |
+| Frontend | ✅ Running | Accessible at http://172.25.232.68:31385/ |
+| Backend API | ✅ Running | Responding with project data |
+| AI Service | ✅ Running | Available at /api/ai endpoint |
+
+---
+
+Document Version: 1.2  
 Last Updated: October 9, 2026  
 Status: Complete ✅
