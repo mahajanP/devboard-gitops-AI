@@ -59,7 +59,6 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: data
-        namespace: devboard
       spec:
         storageClassName: manual
         accessModes:
