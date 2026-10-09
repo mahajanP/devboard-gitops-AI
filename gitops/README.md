@@ -18,6 +18,12 @@ Internet ─▶ Envoy Gateway (NLB) ─▶ frontend ─┬─ /api    ─▶ bac
 ```
 The frontend proxies `/api` to the backend internally, so the Gateway only points at the frontend.
 
+## Quick Access
+
+After deployment, access the application at:
+- **Application URL:** See [APPLICATION_ACCESS.md](APPLICATION_ACCESS.md)
+- **Troubleshooting:** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
 ## Steps
 
 | # | File | What |

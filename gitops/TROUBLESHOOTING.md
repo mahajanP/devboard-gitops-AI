@@ -106,6 +106,32 @@ kubectl get application devboard-gitops-application -n argocd -o wide
 
 ---
 
+## Gateway & Access Issues
+
+### Application inaccessible on expected port
+
+**Symptom:** Gateway shows ADDRESS as `<pending>` or not accessible via LoadBalancer IP
+
+**Root Cause:** 
+- LoadBalancer service waiting for external IP assignment  
+- Local/non-cloud environments use NodePort instead
+- See [APPLICATION_ACCESS.md](APPLICATION_ACCESS.md) for current access method  
+
+**Solution:**
+Use NodePort (automatically created as fallback):
+```bash
+# Get the NodePort
+kubectl get svc -n envoy-gateway-system | grep envoy-devboard
+# Look for PORT(S) column, e.g., 80:31385/TCP
+
+# Access via NodePort
+http://172.25.232.68:31385/
+```
+
+For EKS/cloud deployments, install AWS Load Balancer Controller to get auto-provisioned NLB IP.
+
+---
+
 ## Other Common Issues
 
 ### PVC Remains Pending
