@@ -6,6 +6,8 @@ kind: Application
 metadata:
   name: devboard-gitops-application
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
 
