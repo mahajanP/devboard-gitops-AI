@@ -60,7 +60,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: manual
+        storageClassName: gp2
         accessModes:
           - ReadWriteOnce
         resources:
