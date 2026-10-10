@@ -49,3 +49,59 @@ kubectl get pods -n argocd
 \`\`\`
 
 After removing the taint, the pods successfully spun up and the Helm installation completed successfully!
+
+---
+
+## Troubleshooting FAQ: What if ArgoCD Fails or is Deleted?
+
+### Issue: Deleting the ArgoCD Application does not delete the DevBoard resources
+When you delete an ArgoCD `Application` (e.g., via `kubectl delete -f devboard-application.yml`), ArgoCD only deletes the "manager" configuration. It leaves the actual Kubernetes resources (Deployments, Pods, Services) running in the cluster.
+
+**The Fix:**
+To make ArgoCD automatically clean up the project when the application is deleted (Cascade Deletion), a **Finalizer** must be added to the application manifest. This has now been added to `gitops/argocd/devboard-application.yml`:
+```yaml
+metadata:
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+```
+*(If you need to manually clean up orphaned resources, simply run: `kubectl delete namespace devboard`)*
+
+### Issue: How to troubleshoot the application if ArgoCD is down?
+ArgoCD is only the **manager**. Kubernetes is the **engine** that runs your application. If ArgoCD crashes, is deleted, or goes offline, your frontend, backend, and database will **continue running completely unaffected**.
+
+If ArgoCD is unavailable and you need to troubleshoot your application, bypass ArgoCD and use native Kubernetes commands:
+
+**1. Check application health:**
+```bash
+kubectl get pods -n devboard
+```
+
+**2. Check application logs:**
+```bash
+# Replace with the actual pod name
+kubectl logs pod/devboard-backend-deployment-xxxxx -n devboard
+```
+
+**3. Check application errors / events:**
+```bash
+kubectl describe pod/devboard-backend-deployment-xxxxx -n devboard
+```
+
+### Issue: How to fix ArgoCD itself?
+If your application is fine but ArgoCD is stuck or failing to sync:
+
+**1. Check ArgoCD components:**
+```bash
+kubectl get pods -n argocd
+```
+
+**2. Check ArgoCD server logs:**
+```bash
+kubectl logs -l app.kubernetes.io/name=argocd-server -n argocd
+```
+
+**3. Restart ArgoCD (Safe to do, will not affect the running DevBoard app):**
+```bash
+kubectl rollout restart deployment argocd-server -n argocd
+kubectl rollout restart deployment argocd-repo-server -n argocd
+```
