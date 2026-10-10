@@ -189,3 +189,31 @@ kubectl get svc -n envoy-gateway-system
 Document Version: 1.3  
 Last Updated: October 10, 2026  
 Status: Complete ✅
+
+---
+
+## Additional Fix - October 10, 2026 (ArgoCD Sync Loop & Released PVs)
+
+**Issue:** 
+After deleting the `devboard` namespace to test ArgoCD deployment, Postgres got stuck in `Pending` again. 
+
+**Root Cause:**
+1. **ArgoCD Git Sync:** The local fix for `storageClassName: gp2` was not pushed to GitHub. Because ArgoCD pulls directly from Git (`selfHeal: true`), it overwrote the local fix and reapplied the old `manual` storage class.
+2. **Released PV Lock:** When the namespace was deleted, the PVC was deleted, which caused the existing `postgres-pv` (manual) to enter a `Released` state. Kubernetes prevents a `Released` PV from binding to a new PVC until its `claimRef` is cleared.
+3. **Double Claim:** There are TWO manifests asking for `manual` storage (`persistent-volume-clame.yml` and the StatefulSet `volumeClaimTemplates`), but only ONE `manual` PV existed.
+
+**Fix Applied:**
+1. **Unlocked Released PVs:** Patched the `postgres-pv` to clear the old claim so it became `Available` again:
+   ```bash
+   kubectl patch pv postgres-pv -p '{"spec":{"claimRef": null}}'
+   ```
+2. **Created a Second Manual PV:** Created a new PV (`postgres-pv-manual-2`) so both the standalone PVC and the StatefulSet PVC have a volume to bind to if ArgoCD forces the `manual` storage class again.
+3. **Updated Automation Script:** Updated `fix-postgres.sh` to automatically unlock `Released` PVs and ensure a secondary manual PV exists.
+
+**How to Prevent This Permanently:**
+Ensure your GitHub repository has the correct `storageClassName: gp2` in `k8s/postgres-statefulset.yml`.
+```bash
+git add k8s/postgres-statefulset.yml
+git commit -m "Update postgres storage class"
+git push origin gitops
+```
