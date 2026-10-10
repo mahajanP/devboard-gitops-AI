@@ -157,10 +157,19 @@ kubectl apply -f k8s/postgres-statefulset.yml -n devboard
 - ✅ Pod: **postgres-statefulset-0 running 1/1**
 - ✅ PVC: **Bound to postgres-pv-gp2**
 - ✅ No more immutable spec errors
-- ✅ Backend API operational: `http://172.25.232.68:31385/api/projects`
+- ✅ Backend API operational: `http://172.25.232.68:<NODE_PORT>/api/projects`
 - ✅ Database queries working
 
 See [gitops/TROUBLESHOOTING.md](gitops/TROUBLESHOOTING.md) for complete details.
+
+---
+
+## How to Find the Frontend/API Port
+Since this is a local cluster using Envoy Gateway, the port is assigned dynamically. To find the current port to access the UI:
+```bash
+kubectl get svc -n envoy-gateway-system
+# Look under PORT(S) for the 5-digit number (e.g., 80:31896/TCP)
+```
 
 ---
 
@@ -171,12 +180,12 @@ See [gitops/TROUBLESHOOTING.md](gitops/TROUBLESHOOTING.md) for complete details.
 | PostgreSQL Pod | ✅ Running 1/1 | postgres-statefulset-0 |
 | PostgreSQL Data | ✅ Bound | data-postgres-statefulset-0 → postgres-pv-gp2 |
 | ArgoCD Sync | ✅ Synced | All manifests in sync |
-| Frontend | ✅ Running | Accessible at http://172.25.232.68:31385/ |
+| Frontend | ✅ Running | Accessible at http://172.25.232.68:<NODE_PORT>/ |
 | Backend API | ✅ Running | Responding with project data |
 | AI Service | ✅ Running | Available at /api/ai endpoint |
 
 ---
 
-Document Version: 1.2  
-Last Updated: October 9, 2026  
+Document Version: 1.3  
+Last Updated: October 10, 2026  
 Status: Complete ✅
