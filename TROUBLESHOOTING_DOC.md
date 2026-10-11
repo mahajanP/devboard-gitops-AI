@@ -47,5 +47,16 @@ The `ai-service` was trying to resolve `ollama.ollama.svc.cluster.local`, but th
 
 **Resolution:**
 1. **Restarted the Proxy Pod:** Deleted the stuck Envoy proxy pod (`kubectl delete pod envoy-devboard... -n envoy-gateway-system`). The newly spun-up pod instantly connected to the control plane, grabbed the HTTPRoute configurations, and became `2/2` Ready.
-2. **Corrected Access URL:** Instructed the user to use the correct NodePort URL (`http://172.25.232.68:32395/`) instead of port `3005`. 
-3. **End-to-End Verification:** Successfully ran `curl` against the NodePort from the host, confirming both the Frontend UI (`/`) and the AI Service Backend (`/api/ai/health`) were successfully routed and returning HTTP 200.
+2. **Fixed the `<pending>` LoadBalancer IP:**
+   - In bare-metal environments without a cloud provider or MetalLB, LoadBalancer services remain `<pending>`.
+   - We resolved this by patching the Service status and assigning the host/node IP `172.25.232.68` as both the LoadBalancer Ingress IP and an `externalIP`:
+     ```bash
+     kubectl patch svc envoy-devboard-devboard-gateway-bee4af0f -n envoy-gateway-system --subresource=status -p '{"status":{"loadBalancer":{"ingress":[{"ip":"172.25.232.68"}]}}}'
+     kubectl patch svc envoy-devboard-devboard-gateway-bee4af0f -n envoy-gateway-system -p '{"spec":{"externalIPs":["172.25.232.68"]}}'
+     ```
+   - This transitioned the Gateway resource to `Programmed: True` with `Address assigned to the Gateway`.
+   - The Service now shows `EXTERNAL-IP: 172.25.232.68` (no longer `<pending>`).
+3. **Verified Access:** 
+   - You can now access the app directly on standard port 80: `http://172.25.232.68/`
+   - It also remains accessible via the NodePort: `http://172.25.232.68:32395/`
+   - Both the Frontend and AI Backend (`/api/ai/health`) return HTTP 200.
