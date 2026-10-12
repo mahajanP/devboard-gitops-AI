@@ -56,6 +56,15 @@ spec:
           ports:
             - containerPort: 11434
               name: http
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "ollama list | grep -q 'llama3.2:1b'"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 60
           resources:
             requests:
               cpu: 500m
