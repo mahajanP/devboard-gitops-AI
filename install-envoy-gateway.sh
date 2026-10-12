@@ -15,12 +15,17 @@ echo "=========================================================="
 echo "         Envoy Gateway Automated Installation"
 echo "=========================================================="
 
+# 0. Ensure single-node clusters allow scheduling by removing control-plane taints
+echo "[0/6] Removing control-plane taints to allow certgen and gateway pods to schedule..."
+kubectl taint nodes --all node-role.kubernetes.io/control-plane- 2>/dev/null || true
+kubectl taint nodes --all node-role.kubernetes.io/master- 2>/dev/null || true
+
 # 1. Install / Ensure Gateway API CRDs
-echo "[1/5] Checking and installing Gateway API Standard CRDs..."
+echo "[1/6] Checking and installing Gateway API Standard CRDs..."
 kubectl apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
 
 # 2. Check existing Helm release to avoid 'cannot re-use a name' error
-echo "[2/5] Checking existing Helm release for '${RELEASE_NAME}'..."
+echo "[2/6] Checking existing Helm release for '${RELEASE_NAME}'..."
 if helm status "${RELEASE_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1; then
     STATUS=$(helm status "${RELEASE_NAME}" -n "${NAMESPACE}" -o json | grep -o '"status": *"[^"]*"' | head -n 1 | awk -F'"' '{print $4}')
     echo "Found existing release '${RELEASE_NAME}' with status: ${STATUS}"
@@ -37,17 +42,17 @@ fi
 
 # 3. Install Envoy Gateway if not already deployed
 if ! helm status "${RELEASE_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1; then
-    echo "[3/5] Installing Envoy Gateway (Version: ${CHART_VERSION})..."
+    echo "[3/6] Installing Envoy Gateway (Version: ${CHART_VERSION})..."
     helm install "${RELEASE_NAME}" oci://docker.io/envoyproxy/gateway-helm \
         --version "${CHART_VERSION}" \
         -n "${NAMESPACE}" \
         --create-namespace
 else
-    echo "[3/5] Envoy Gateway Helm chart is already installed and up to date."
+    echo "[3/6] Envoy Gateway Helm chart is already installed and up to date."
 fi
 
 # 4. Wait for Envoy Gateway Controller Pod to be Ready
-echo "[4/5] Waiting for Envoy Gateway controller to be Ready..."
+echo "[4/6] Waiting for Envoy Gateway controller to be Ready..."
 kubectl wait --namespace "${NAMESPACE}" \
     --for=condition=ready pod \
     --selector=app.kubernetes.io/name=gateway-helm \
@@ -57,7 +62,7 @@ kubectl wait --namespace "${NAMESPACE}" \
     --timeout=120s || true
 
 # 5. Apply GatewayClass
-echo "[5/5] Ensuring GatewayClass 'envoy' exists..."
+echo "[5/6] Ensuring GatewayClass 'envoy' exists..."
 cat << 'EOF' | kubectl apply -f -
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass

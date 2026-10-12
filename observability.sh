@@ -20,6 +20,10 @@ deploy_stack() {
     echo "       [1/4] Installing Prometheus & Grafana Stack        "
     echo "=========================================================="
 
+    # Ensure single-node cluster allows scheduling
+    kubectl taint nodes --all node-role.kubernetes.io/control-plane- 2>/dev/null || true
+    kubectl taint nodes --all node-role.kubernetes.io/master- 2>/dev/null || true
+
     if helm status "${RELEASE_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1; then
         echo "Release '${RELEASE_NAME}' already exists. Upgrading..."
         helm upgrade "${RELEASE_NAME}" oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
