@@ -60,3 +60,49 @@ The `ai-service` was trying to resolve `ollama.ollama.svc.cluster.local`, but th
    - You can now access the app directly on standard port 80: `http://172.25.232.68/`
    - It also remains accessible via the NodePort: `http://172.25.232.68:32395/`
    - Both the Frontend and AI Backend (`/api/ai/health`) return HTTP 200.
+
+---
+
+## 4. Prometheus Node Exporter Stuck in `CreateContainerError`
+**Symptoms:**
+- Pod `kube-prom-stack-prometheus-node-exporter-...` in `kube-prometheus-stack` was stuck in `CreateContainerError`.
+- Kubelet event message:
+  ```text
+  Error: failed to generate container spec: failed to generate spec: path "/" is mounted on "/" but it is not a shared or slave mount
+  ```
+
+**Root Cause:**
+In WSL 2 / bare-metal environments, the host root filesystem (`/`) is mounted with `private` propagation by default. The Prometheus Node Exporter DaemonSet had `mountPropagation: HostToContainer` on the `/host/root` volume mount. Kubernetes and containerd require the host mount to be `rshared` or `rslave` when `HostToContainer` propagation is requested, failing container creation.
+
+**Resolution:**
+Patched the DaemonSet to change `mountPropagation` on `/host/root` to `None`:
+```bash
+kubectl patch ds kube-prom-stack-prometheus-node-exporter -n kube-prometheus-stack --type='json' -p='[{"op":"replace","path":"/spec/template/spec/containers/0/volumeMounts/2/mountPropagation","value":"None"}]'
+```
+The node-exporter pod immediately launched and reached `1/1 Running`, successfully exporting host metrics on port `9100`.
+
+---
+
+## 5. Grafana Port-Forward `Error from server (NotFound): services not found`
+**Symptoms:**
+- Running `kubectl port-forward svc/kube-prom-stack-grafana 8081:80` fails with:
+  ```text
+  Error from server (NotFound): services "kube-prom-stack-grafana" not found
+  ```
+
+**Root Cause:**
+`kubectl` defaults to searching within the `default` namespace when no `-n` namespace flag is specified. The Prometheus and Grafana components were installed in the custom namespace `kube-prometheus-stack`.
+
+**Resolution:**
+Specify the namespace explicitly in the port-forward command:
+```bash
+kubectl port-forward svc/kube-prom-stack-grafana -n kube-prometheus-stack 8081:80 --address 0.0.0.0 &
+```
+
+**Credentials Retrieval:**
+- **URL:** `http://localhost:8081/` (or `http://172.25.232.68:8081/`)
+- **Username:** `admin`
+- **Password Command:**
+  ```bash
+  kubectl get secret -n kube-prometheus-stack kube-prom-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d
+  ```
