@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: devboard-backend
-        image: prakashmahajan123/devboard-backend:latest
+        image: prakashmahajan123/devboard-backend:sha-b1ad0ca
         ports:
           - containerPort: 8080
         env:
