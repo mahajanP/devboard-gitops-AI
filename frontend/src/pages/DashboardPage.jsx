@@ -33,7 +33,7 @@ export function DashboardPage() {
               workspace overview
             </span>
           </div>
-          <h1 className="text-[30px] font-semibold leading-none tracking-[-0.6px]">DevBoard (UI + Go + Postgres+AI)</h1>
+          <h1 className="text-[30px] font-semibold leading-none tracking-[-0.6px]">DevBoard Advance (UI + Go + Postgres+AI)</h1>
         </div>
         {firstId && (
           <Link to={`/projects/${firstId}`}>
