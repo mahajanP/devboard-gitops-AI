@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: devboard-ai-service
-          image: prakashmahajan123/devboard-ai-service:sha-ace1fb3
+          image: prakashmahajan123/devboard-ai-service:sha-48c3e88
           imagePullPolicy: IfNotPresent  
           ports:
             - containerPort: 3005

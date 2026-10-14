@@ -42,7 +42,7 @@ postgres:
 backend:
   image:
     repository: prakashmahajan123/devboard-backend
-    tag: sha-ace1fb3
+    tag: sha-48c3e88
     pullPolicy: IfNotPresent
   replicas: 1
   serviceName: backend
@@ -62,7 +62,7 @@ frontend:
   image:
     repository: prakashmahajan123/devboard-frontend
     # ":ai" is the rebuilt image that includes the AI Assistant page.
-    tag: sha-ace1fb3
+    tag: sha-48c3e88
     pullPolicy: IfNotPresent
   replicas: 1
   containerPort: 4173
@@ -91,7 +91,7 @@ ai:
   enabled: true
   image:
     repository: prakashmahajan123/devboard-ai-service
-    tag: sha-ace1fb3
+    tag: sha-48c3e88
     pullPolicy: IfNotPresent
   replicas: 1
   serviceName: ai-service
