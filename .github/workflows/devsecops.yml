@@ -66,3 +66,105 @@ jobs:
     uses: ./.github/workflows/gitops-bump.yml
     with:
       image_tag: ${{ needs.prep.outputs.tag }}
+
+  # ---- Automated Workflow Reporter Agent ----
+  # Automatically runs whenever a workflow finishes (completed or failed),
+  # generates a detailed execution report, and commits it into workflow-reports/.
+  workflow-reporter:
+    if: always()
+    needs: [prep, code-quality, secret-scanning, dependency-checks, sonar-qube, code-tests, docker-checks, docker-push, gitops-bump]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout gitops branch
+        uses: actions/checkout@v7
+        with:
+          ref: gitops
+          fetch-depth: 0
+
+      - name: Generate and Save Workflow Report
+        env:
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+          PREP_RES: ${{ needs.prep.result }}
+          QUALITY_RES: ${{ needs.code-quality.result }}
+          SECRETS_RES: ${{ needs.secret-scanning.result }}
+          DEPS_RES: ${{ needs.dependency-checks.result }}
+          SONAR_RES: ${{ needs.sonar-qube.result }}
+          TESTS_RES: ${{ needs.code-tests.result }}
+          DOCKER_CHECKS_RES: ${{ needs.docker-checks.result }}
+          DOCKER_PUSH_RES: ${{ needs.docker-push.result }}
+          GITOPS_BUMP_RES: ${{ needs.gitops-bump.result }}
+        run: |
+          set -euo pipefail
+          mkdir -p workflow-reports
+          SHORT_SHA="${SHA:0:7}"
+          COMMIT_MSG=$(git log -1 --format="%s" "$SHA" 2>/dev/null || echo "Commit $SHORT_SHA")
+          DATE_UTC=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          STATUS_BADGE="✅ SUCCESS"
+          for res in "$PREP_RES" "$QUALITY_RES" "$SECRETS_RES" "$DEPS_RES" "$SONAR_RES" "$TESTS_RES" "$DOCKER_CHECKS_RES" "$DOCKER_PUSH_RES" "$GITOPS_BUMP_RES"; do
+            if [ "$res" = "failure" ]; then
+              STATUS_BADGE="❌ FAILED"
+              break
+            fi
+          done
+
+          REPORT_FILE="workflow-reports/report-sha-${SHORT_SHA}.md"
+
+          cat <<EOF > "$REPORT_FILE"
+          # GitHub Actions Workflow Execution Report
+
+          - **Repository**: \`mahajanP/devboard-gitops-AI\`
+          - **Branch**: \`gitops\`
+          - **Pipeline**: \`DevSecOps Pipeline\` (\`.github/workflows/devsecops.yml\`)
+          - **Trigger Commit**: [\`${SHORT_SHA}\`](https://github.com/mahajanP/devboard-gitops-AI/commit/${SHA}) - *"${COMMIT_MSG}"*
+          - **Triggered By**: @${ACTOR}
+          - **Event**: \`${EVENT_NAME}\`
+          - **Execution Date**: ${DATE_UTC}
+          - **Overall Status**: **${STATUS_BADGE}**
+
+          ---
+
+          ## 1. Pipeline Execution Breakdown
+
+          | Stage / Gate | Technology / Scope | Result |
+          | :--- | :--- | :--- |
+          | **Preparation (\`prep\`)** | Generate immutable tag \`sha-${SHORT_SHA}\` | ${PREP_RES} |
+          | **Code Quality (\`code-quality\`)** | ESLint, Go fmt/vet, Ruff SAST | ${QUALITY_RES} |
+          | **Secret Scanning (\`secret-scanning\`)** | Gitleaks secret leak detection | ${SECRETS_RES} |
+          | **Dependency Audits (\`dependency-checks\`)** | \`govulncheck\`, \`npm audit\`, \`pip-audit\` | ${DEPS_RES} |
+          | **SonarQube (\`sonar-qube\`)** | SonarCloud code health and vulnerability rules | ${SONAR_RES} |
+          | **Unit Tests (\`code-tests\`)** | Go unit tests, Vitest/Jest frontend, Pytest AI | ${TESTS_RES} |
+          | **Docker Lint & Scan (\`docker-checks\`)** | Hadolint Dockerfile lint, Trivy CRITICAL CVE scan | ${DOCKER_CHECKS_RES} |
+          | **Docker Build & Push (\`docker-push\`)** | Docker Hub multi-service images build & push | ${DOCKER_PUSH_RES} |
+          | **GitOps Deployment (\`gitops-bump\`)** | Auto-bump manifests in \`k8s/\` and \`helm/\` | ${GITOPS_BUMP_RES} |
+
+          EOF
+
+          INDEX_FILE="workflow-reports/README.md"
+          if [ ! -f "$INDEX_FILE" ]; then
+            cat <<EOF > "$INDEX_FILE"
+          # Workflow Execution Reports
+
+          This directory stores automated execution reports for all GitHub Actions workflow runs.
+
+          | Date | Commit | Status | Report Link |
+          | :--- | :--- | :--- | :--- |
+          EOF
+          fi
+
+          echo "| ${DATE_UTC} | [\`${SHORT_SHA}\`](https://github.com/mahajanP/devboard-gitops-AI/commit/${SHA}) | ${STATUS_BADGE} | [Report](report-sha-${SHORT_SHA}.md) |" >> "$INDEX_FILE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin gitops || true
+          git add workflow-reports/
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "docs(reports): automated workflow report for sha-${SHORT_SHA} [skip ci]"
+            git push origin HEAD:gitops
+          fi
